@@ -1,6 +1,7 @@
 body {
     font: 14px "Century Gothic", Futura, sans-serif;
     margin: 20px;
+    text-align: center;
   }
   
   ol, ul {
@@ -18,9 +19,9 @@ body {
   }
   
   .square {
-    background: #fff;
+    background: #ddd;
     border: 1px solid #999;
-    float: left;
+    //float: left;
     font-size: 16px;
     font-weight: bold;
     line-height: 24px;
@@ -33,6 +34,10 @@ body {
     color: grey;
   }
 
+
+  .square-0 {
+    color: #ddd;
+  }
   .square-1 {
     color: blue;
   }
@@ -57,6 +62,12 @@ body {
   .square-8 {
     color: gray;
   }
+  .square-closed{
+    border:3px outset #ddd
+  }
+  .square-openned{
+    padding: 2px;
+  }
   .openned-bomb {
     background-color: red;
   }
@@ -77,11 +88,18 @@ body {
   }
   
   .game {
-    display: flex;
-    flex-direction: row;
+    --display: flex;
+    --flex-direction: row;
   }
   
   .game-info {
     margin-left: 20px;
   }
   
+
+  .counter {
+    color: red;
+    font-family:  'Courier New', Courier, monospace;
+    font-weight: bolder;
+    font-size: 24pt;
+  }

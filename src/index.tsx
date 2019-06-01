@@ -6,31 +6,51 @@ import { SSL_OP_NO_TICKET } from 'constants';
 
 //const GameStateContext = React.createContext();
 
-function Square(props) {
+type SVB = {tag: "bomb", value: "B"};
+type SVN = {tag: "number", value: number};
+type SV = SVB | SVN;
+
+interface SquareProps { 
+    square:BoardItem;
+    won: any; 
+    onClick?: ((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void) ; 
+    onContextMenu?: ((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void);
+    state: GameState; 
+}
+
+const Square = (props: SquareProps) => {
     const square = props.square;
     return (
         <button
             className={`square 
             ${props.won? 'square-won':'sss'} 
-            square-${square.openned?square.value:0}
-            ${square.value==='B' && square.openned?'openned-bomb':''}
+            ${square.openned? 'square-openned':'square-closed'}
+            square-${square.openned?square.sv.value:-1}
+            ${square.sv.tag==="bomb" && square.openned?'openned-bomb':''}
             `}
             onClick={props.onClick}
             onContextMenu={props.onContextMenu}>
-            { props.state==='Dead' || square.openned? square.value: 
-                square.marked? '!' : '?'}
+            { props.state===GameState.Dead || square.openned? square.sv.value: 
+                square.marked? '!' : ''}
         </button>
     );
     
 }
 
-function Timer(props) {
+enum GameState {
+    New = ':',
+    Dead = 'Dead xxx',
+    Win = 'Won !! :)',
+    Playing = ':o'
+}
+
+const Timer = (props: { state: GameState; }) => {
     const [seconds, setSeconds] = useState(0);
     useEffect(()=>{
-        if (props.state === 'New') {
+        if (props.state === GameState.New) {
             setSeconds(0); 
             return;
-        } else if (props.state === 'Dead' || props.state === 'Win') {
+        } else if (props.state === GameState.Dead || props.state === GameState.Win) {
             return;
         }
         
@@ -44,31 +64,24 @@ function Timer(props) {
         }
     })
 
-    return (<span>Time:{seconds}</span>)
+    return (<span className='counter'>{seconds}</span>)
+}
+
+interface BoardProps { 
+    size: number; 
+    squares: { [x: string]: any; }; 
+    lines?: string; 
+    onClick: (arg0: React.MouseEvent<HTMLButtonElement, MouseEvent>, arg1: any) => void; 
+    onContextMenu: (arg0: React.MouseEvent<HTMLButtonElement, MouseEvent>, arg1: any) => void; 
+    state: GameState; 
+    bombs: number[];
 }
 
 //class Board extends React.Component {
-function Board(props) {
-    /*constructor(props) {
-        super(props);
-        this.size = props.size;
-        this.bombs = props.bombs;
-    }*/
-
-    /*function renderSquare(i, isBomb) {
-        return <Square
-            value={this.props.squares[i]}
-            key={i}
-            won={this.props.lines && this.props.lines.indexOf(i) >= 0}
-            onClick={() => this.props.onClick(i)} 
-            />;
-    }
-    */
-
-    //render() {
-
-    console.log('render board');
-    let rows = []
+const Board = (props: BoardProps) => {
+ 
+    //console.log('render board');
+    let rows: number[] = []
     for (var i = 0; i< props.size; i++) {
         rows.push(i);
     }
@@ -88,7 +101,7 @@ function Board(props) {
                             square={props.squares[squareIdx]}
                             key={squareIdx}
                             won={props.lines 
-                                && props.lines.indexOf(i) >= 0}
+                                && props.lines.indexOf(String(i)) >= 0}
                             onClick={(e) => props.onClick(e,squareIdx)} 
                             onContextMenu={(e)=> props.onContextMenu(e,squareIdx)}
                             state={props.state}
@@ -103,12 +116,24 @@ function Board(props) {
     //}
 }
 
-const createBoard = (bombCount, size) => {
-    const bombs = [];
+interface BoardItem {
+    sv: SV;
+    openned: boolean;
+    marked: boolean;
+}
+
+interface Board {
+    bombs: number[];
+    board: BoardItem[];
+}
+
+const createBoard: (bombCount:number,size:number)=>Board
+= (bombCount, size) => {
+    const bombs:number[] = [];
     const boardCount = size **2;
-    console.log('bombs start:' + boardCount);
+    //console.log('bombs start:' + boardCount);
     for (let i =0; i< bombCount; i++) {
-        console.log('gen bomb');
+        //console.log('gen bomb');
         let nextBomb = Math.floor((Math.random()*boardCount));
         while(bombs.includes(nextBomb)) {
             nextBomb = Math.floor((Math.random()*boardCount));
@@ -116,22 +141,26 @@ const createBoard = (bombCount, size) => {
         bombs.push(nextBomb);              
     }
     bombs.sort();
-    console.log('bombs:' + bombs);
+    //console.log('bombs:' + bombs);
 
-    const board = Array(boardCount).fill().map(x=>{return {value:null, openned:false};});
+    const board:BoardItem[] = Array(boardCount).fill({}).map(
+        _x=>{return {sv:{tag:"number",value:0}, openned:false, marked:false};});
     for (const i of bombs) {
-        console.log('bomb:'+i);
+        //console.log('bomb:'+i);
         const b = board[i];
-        b.value = 'B';
+        b.sv = {tag:"bomb",value:"B"};
         const nbs = neighbours(i, size);
-        console.log(`neighbours[${i}]:${nbs}`);
+        //console.log(`neighbours[${i}]:${nbs}`);
         for (const nb of nbs) {
-            if (board[nb].value !== 'B') {
-                if (!board[nb].value) {
-                    board[nb].value = 1;
-                } else {
-                    board[nb].value = board[nb].value*1+1;
-                }
+          const v = board[nb].sv;
+          switch (v.tag) {
+                case "number": {
+                    if (!v.value) {
+                        v.value = 1;
+                    } else {
+                        v.value++;
+                    }
+                }    
             }
         }
     }
@@ -139,11 +168,12 @@ const createBoard = (bombCount, size) => {
     return {bombs:bombs, board:board};
 
     //this.board = board;
-    //console.log(this.board);
+    ////console.log(this.board);
 }
 
-const neighbours = (i, size) => {
-    let out = [];
+const neighbours:(i:number, size:number)=>number[]
+ = (i, size) => {
+    let out:number[] = [];
     const leftEdge = i % size ===0;
     const rightEdge = (i+1) % size ===0;
 
@@ -178,93 +208,69 @@ const neighbours = (i, size) => {
 }
 
 
-//class Game extends React.Component {
-const Game = (props) => {
-    /*constructor(props) {
-        super(props);
-        this.state = {
-
-        
-            moves: [{}],
-            stepNumber: 0,
-            xIsNext: true,
-            asc: false,
-
-        };
-
-        this.createBombs(this.props.bombCount);
-        
-        this.state.history = [];
-        this.state.history[0] = {squares:this.board};
-    }*/
-    console.log('render game');
+const Game = (props: { bombCount: number; size: number; }) => {
+    //console.log('render game');
     
     //const [moves, setMoves] = useState([{}]);
     //const [stepNumber, setStepNumber] = useState(0);
     const [{bombs,board}, setBoard] = useState(()=>
         createBoard(props.bombCount, props.size));
     //const [history, setHistory] = useState([{squares:board}]);
-    const [state, setState] = useState('New');
+    const [state, setState] = useState(GameState.New);
 
     const [bombCount, setBombCount] = useState (props.bombCount);
-    const [openCount, setOpenCount] = useState (props.size**2 - props.bombCount);
 
     const newGameClick = ()=> {
         setBoard ( createBoard(props.bombCount, props.size));
-        setState('New');
+        setState(GameState.New);
         setBombCount(props.bombCount);   
-        setOpenCount(props.size**2 - props.bombCount);  
     }
     
-    const handleClick = (e,i) => {
-        console.log(`clicked:${i}`);
-        if (state === 'Dead' || state ==='Win'|| board[i].openned) return;
+    const handleClick = (_e: React.MouseEvent<HTMLButtonElement, MouseEvent>,i: number) => {
+        //console.log(`clicked:${i}`);
+        if (state === GameState.Dead || state ===GameState.Win|| board[i].openned) return;
 
         if(bombs.includes(i)) {
-            setState('Dead');
-        } else if (state !== 'Playing') {
-            setState('Playing');
+            setState(GameState.Dead);
+        } else if (state !== GameState.Playing) {
+            setState(GameState.Playing);
         }
 
-
-
-        let oc = 0;
         setBoard(({bombs,board:prevBoard})=>{
             const nextBoard = prevBoard.slice();
-            const open = (x) =>{
+            const open = (x: number) =>{
                 nextBoard[x].openned = true;
-                oc ++;
-                if (!nextBoard[x].value) {
+                //console.log('openning');
+                if (!nextBoard[x].sv.value) {
                     neighbours(x, props.size)
                     .map(j=>!nextBoard[j].openned?open(j):null);
                 }
             }
 
-            console.log(`prevboard:${showBoard(prevBoard)}`);
+            //console.log(`prevboard:${showBoard(prevBoard)}`);
             open(i);
 
-            console.log(`nextboard:${showBoard(nextBoard)}`);
+            if (!nextBoard.find(b=>!b.openned && b.sv.tag==='number')) {
+                setState(GameState.Win)
+            }
+
+            //console.log(`nextboard:${showBoard(nextBoard)}`);
             return {bombs:bombs,board:nextBoard};
         });
 
-        setOpenCount((prevOpenCount)=>prevOpenCount-oc);
-
-        if (oc === openCount) {
-            setState('Win');
-        }
-
+     
     }
 
-    const handleContextMenu = (e,i) => {
-        console.log(`context menu:${i}`);
+    const handleContextMenu = (e:React.MouseEvent<HTMLButtonElement, MouseEvent>,i: number) => {
+        //console.log(`context menu:${i}`);
         e.preventDefault();
 
-        if (state === 'Dead' || state === 'Win') return;
+        if (state === GameState.Dead || state === GameState.Win) return;
 
         setBoard(({bombs,board:prevBoard})=>{
             const nextBoard = prevBoard.slice();
 
-            const open = (x) =>{
+            const open = (x:number) =>{
                 nextBoard[x].marked = !nextBoard[x].marked;
             }
 
@@ -278,8 +284,8 @@ const Game = (props) => {
 
     }
 
-    const showBoard = (board) => {
-        return board.map(b=>`${b.value}, ${b.openned}`).join(',');
+    const showBoard = (board:BoardItem[]) => {
+        return board.map(b=>`${b.sv.value}, ${b.openned}`).join(',');
     }
     /*
     jumpTo(step) {
@@ -321,9 +327,18 @@ const Game = (props) => {
     const movesDisplay = this.state.asc ? moves : moves.slice(0).reverse();
     */
 
-    console.log('render game end');
+    //console.log('render game end');
     return (
         <div className="game">
+            <div className="game-info">
+                <button onClick={newGameClick}>New Game</button>
+                <div>{state}</div>
+                <div style={{width:200, display:'inline-flex'}}>
+                    <div style={{order:1, flexGrow:1}} className='counter'>{bombCount}</div>
+                    <div style={{order:2, flexGrow:1}}> </div>
+                    <div style={{order:3, flexGrow:1}}><Timer state={state} /></div>
+                </div>
+            </div>
             <div className="game-board">
                 <Board
                     squares={board}
@@ -331,18 +346,8 @@ const Game = (props) => {
                     onContextMenu={handleContextMenu}
                     size={props.size}
                     bombs={bombs}
-                    state={''}
+                    state={state}
                     />
-            </div>
-            <div className="game-info">
-                <button onClick={newGameClick}>New Game</button>
-                <div>{state}</div>
-                <div>bombs: {bombCount}</div>
-                {
-                //<button onClick={()=>this.toogle()}>toggle</button>
-                //<ol reversed={!this.state.asc}>{movesDisplay}</ol>
-                }
-                <Timer state={state}/>
             </div>
         </div>
     );
@@ -352,6 +357,6 @@ const Game = (props) => {
 // ========================================
 
 ReactDOM.render(
-    <Game size='5' bombCount="2"/>,
+    <Game size={20} bombCount={4}/>,
     document.getElementById('root')
 );
